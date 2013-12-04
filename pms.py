@@ -151,12 +151,16 @@ def reqinput(songs):
     r = {'nil': r'\s*$',
          'play': r'\s*(\d{1,3})',
          'dl': r'\s*(?:d|dl|download|down)(?:\s)*(\d{1,3})',
+         'add_playlist': r'\s*(?:a|add)(?:\s)*(\d{1,3})',
+         'playlist': r'\s*(?:p|playlist)\s*$',
          'quit': r'\s*(q|quit)\s*$'}
     choice = raw_input(txt)
     for k in r.keys():
         r[k] = re.compile(r[k], re.IGNORECASE)
     if r['quit'].match(choice):
         sys.exit("{}(c) 2013 nagev.  Thanks for coming..{}".format(c.b, c.w))
+    elif r['playlist'].match(choice):
+        return("playlist", None, None)
     elif r['nil'].match(choice):
         return("nilerror", None, songs)
     elif r['play'].match(choice):
@@ -169,6 +173,12 @@ def reqinput(songs):
         if songnum > len(songs):
             return("rangeerror", songnum, songs)
         return("download", songs[songnum - 1], songs)
+    elif r['add_playlist'].match(choice):
+        songnum = int(r['add_playlist'].match(choice).group(1))
+        if songnum > len(songs):
+            return("rangeerror", songnum, songs)
+        return("add_playlist", songs[songnum - 1], songs)
+
     else:
         return("search", choice, songs)
 
@@ -244,6 +254,18 @@ def download(song):
         sys.stdout.flush()
     print("\n%sDone\n" % c.y)
 
+def addsongtoplaylist(song):
+    with open('/tmp/current_playlist', 'a') as playlistfile:
+        playlistfile.write(json.dumps(song))
+    print("\n%sDone\n" % c.y)
+
+def playlist():
+    # songs=dict([tuple(song.split(",",1))
+    for _song in file('/tmp/current_playlist'):
+        song = json.loads(_song)
+        print(generate_song_meta(song))
+        playsong(song)
+
 
 def songaction(action, value, songs):
     if action == "play":
@@ -251,6 +273,10 @@ def songaction(action, value, songs):
         playsong(value)
     elif action == "download":
         download(value)
+    elif action == "add_playlist":
+        addsongtoplaylist(value)
+    elif action == "playlist":
+        playlist()
     elif action == "rangeerror" or action == "nilerror":
         value = value or "zilch"
         return("Sorry, %s%s%s is not a valid choice" % (c.g, value, c.w))
@@ -268,7 +294,7 @@ def start(args):
         text = generate_choices(songs)
         print(text)
         a, v, s = reqinput(songs)
-        sactions = "play download rangeerror nilerror".split(" ")
+        sactions = "play download rangeerror nilerror add_playlist playlist".split(" ")
         while a in sactions:
             status = songaction(a, v, s)
             print(generate_choices(songs))
